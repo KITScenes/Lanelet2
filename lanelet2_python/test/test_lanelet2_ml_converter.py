@@ -51,6 +51,27 @@ def get_sample_lanelet_map():
     return mymap
 
 
+def get_bike_lane_skip_over_map():
+    """Two road lanes with a bicycle lane between them, all bounds of the bike lane are dashed bike markings.
+
+    Driving +x, y increases to the left: v1 (y 0..2) | bike (y 2..4) | v2 (y 4..6).
+    """
+    def line(y, attrs):
+        return LineString3d(getId(), [Point3d(getId(), x, y, 0) for x in (0, 10)], attrs)
+    dashed_bike = {"type": "bike_marking", "subtype": "dashed"}
+    v1_right = line(0, {"type": "road_border"})
+    v1_bike = line(2, dashed_bike)
+    bike_v2 = line(4, dashed_bike)
+    v2_left = line(6, {"type": "road_border"})
+    v1 = Lanelet(getId(), v1_bike, v1_right, {"subtype": "road"})
+    bike = Lanelet(getId(), bike_v2, v1_bike, {"subtype": "bicycle_lane"})
+    v2 = Lanelet(getId(), v2_left, bike_v2, {"subtype": "road"})
+    mymap = LaneletMap()
+    for ll in (v1, bike, v2):
+        mymap.add(ll)
+    return mymap, v1, bike, v2
+
+
 class MapDataInterfaceTestCase(unittest.TestCase):
     def test_map_data_interface(self):
         mymap = get_sample_lanelet_map()
@@ -157,6 +178,31 @@ class MapDataInterfaceTestCase(unittest.TestCase):
         # Test teToTEEdges (list of pairs)
         te_to_te = mData.teToTEEdges
         self.assertIsInstance(te_to_te, list, "teToTEEdges should be a list")
+
+
+class BicycleLaneSkipOverTestCase(unittest.TestCase):
+    def lane_change_edges(self, allow):
+        mymap, v1, bike, v2 = get_bike_lane_skip_over_map()
+        config = MapDataInterface.Configuration()
+        self.assertFalse(config.allowLaneChangeAcrossBicycleLane)
+        config.allowLaneChangeAcrossBicycleLane = allow
+        mDataIf = MapDataInterface(mymap, config)
+        mDataIf.setCurrPosAndExtractSubmap2d(BasicPoint2d(5, 3), 0)
+        mData = mDataIf.mapData(True)
+        edges = {(e.el1, e.el2) for es in mData.llEdges.values() for e in es if e.isLaneChange}
+        return edges, v1.id, bike.id, v2.id
+
+    def test_disabled_by_default(self):
+        edges, v1, _, v2 = self.lane_change_edges(False)
+        self.assertNotIn((v1, v2), edges)
+        self.assertNotIn((v2, v1), edges)
+
+    def test_enabled(self):
+        edges, v1, bike, v2 = self.lane_change_edges(True)
+        self.assertIn((v1, v2), edges)
+        self.assertIn((v2, v1), edges)
+        # the bike lane is not part of the vehicle graph
+        self.assertFalse(any(bike in e for e in edges))
 
 
 if __name__ == '__main__':

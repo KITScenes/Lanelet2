@@ -881,6 +881,7 @@ class MapDataInterface:
         submapExtentLongitudinal: float
         submapExtentLateral: float
         ignoreMapElevation: bool
+        allowLaneChangeAcrossBicycleLane: bool
         resampleLanes: bool
         nPointsLanes: int
         resampleTE: bool

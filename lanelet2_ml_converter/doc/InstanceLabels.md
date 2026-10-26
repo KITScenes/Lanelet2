@@ -190,6 +190,10 @@ to evaluate per map element, or to feed a prediction back into map annotation.
 - The extents of the local reference frame are half extents in each direction.
 - `ignoreMapElevation` zeroes the z coordinate at *extraction* time, so it affects the raw geometry too, not
   only the output.
+- `allowLaneChangeAcrossBicycleLane` (default off) builds the routing graphs with
+  `RoutingGraph::AllowLaneChangeAcrossBicycleLane`: two vehicle lanes with a bicycle lane between them get a
+  left/right lane change edge to each other when both bike lane bounds may be crossed (dashed `bike_marking`,
+  dashed `line_thin`/`line_thick`). See the lanelet2_routing README.
 
 ## Serialization
 

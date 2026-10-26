@@ -651,6 +651,10 @@ BOOST_PYTHON_MODULE(PYTHON_API_MODULE_NAME) {  // NOLINT
                        "left and to the right")
         .def_readwrite("ignoreMapElevation", &MapDataInterface::Configuration::ignoreMapElevation,
                        "If True, elevation (z coordinate) in map elements is ignored and set to 0")
+        .def_readwrite("allowLaneChangeAcrossBicycleLane",
+                       &MapDataInterface::Configuration::allowLaneChangeAcrossBicycleLane,
+                       "If True, two vehicle lanes with a bicycle lane between them get a lane change edge when both "
+                       "bike lane bounds may be crossed (e.g. dashed bike markings). Default False")
         .def_readwrite("resampleLanes", &MapDataInterface::Configuration::resampleLanes,
                        "If True, lane instances are resampled; if False, no fixed resampling")
         .def_readwrite("nPointsLanes", &MapDataInterface::Configuration::nPointsLanes,

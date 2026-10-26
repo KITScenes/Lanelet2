@@ -63,6 +63,11 @@ class MapDataInterface {
     //! if true, elevation (z coordinate) in map elements is ignored and set to 0
     bool ignoreMapElevation{false};
 
+    //! if true, the vehicle routing graph links two lanes across a bicycle lane between them when both bike lane
+    //! bounds may be crossed (e.g. dashed bike markings), see RoutingGraph::AllowLaneChangeAcrossBicycleLane. The
+    //! lanes then get a left/right lane change edge to each other.
+    bool allowLaneChangeAcrossBicycleLane{false};
+
     //! if true, lane instances are resampled; if false, no fixed resampling
     bool resampleLanes{true};
 
@@ -124,6 +129,9 @@ class MapDataInterface {
                                        std::vector<double> pitches, std::vector<double> rolls);
 
  private:
+  //! The routing graph configuration derived from config_
+  routing::RoutingGraph::Configuration routingGraphConfig() const;
+
   //! Builds the map data of one submap and optionally processes it, see MapData::build()
   MapDataPtr getMapData(LaneletSubmapConstPtr localSubmap, const OrientedRect& bbox,
                         lanelet::routing::RoutingGraphConstPtr localSubmapGraph,
