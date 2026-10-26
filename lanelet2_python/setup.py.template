@@ -58,11 +58,11 @@ setup(name=DISTNAME,
       # lanelet2.ml_converter is a numpy extension and lanelet2/__init__.py imports every submodule, so
       # numpy is required to import lanelet2 at all. The bounds follow the C-API the extension was built
       # against, see .github/conan_dockerfile/Dockerfile:
-      # - python >= 3.9 is built against numpy 2, which stays compatible with runtime numpy >= 1.19
-      # - python 3.8 is built against numpy 1 and cannot be used with numpy 2
+      # - python >= 3.10 is built against numpy 2, which stays compatible with runtime numpy >= 1.19
+      # - python 3.8 and 3.9 are built against numpy 1 (boost 1.75, gcc7) and cannot be used with numpy 2
       install_requires=[
-          "numpy>=1.19; python_version >= '3.9'",
-          "numpy<2.0; python_version < '3.9'",
+          "numpy>=1.19; python_version >= '3.10'",
+          "numpy<2.0; python_version < '3.10'",
       ],
       ext_modules=ExtModules(),
       has_ext_modules=lambda: True,
