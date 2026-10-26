@@ -153,9 +153,16 @@ BOOST_PYTHON_MODULE(PYTHON_API_MODULE_NAME) {  // NOLINT
 
   // Register interable conversions.
   IterableConverter().fromPython<RoutingCostPtrs>();
-  DictToRoutingConfigurationConverter();
-  OptionalConverter<RoutingGraph::Configuration>();
-  converters::ToOptionalConverter().fromPython<RoutingGraph::Configuration>();
+  // RoutingGraph::Configuration is the same type as io::Configuration (std::map<std::string, Attribute>), and
+  // lanelet2.io registers the same converters. Register them only if nobody did, otherwise boost::python warns
+  // "to-Python converter ... already registered" on every import of lanelet2.
+  const converter::registration* configRegistration =
+      converter::registry::query(type_id<Optional<RoutingGraph::Configuration>>());
+  if (configRegistration == nullptr || configRegistration->m_to_python == nullptr) {
+    DictToRoutingConfigurationConverter();
+    OptionalConverter<RoutingGraph::Configuration>();
+    converters::ToOptionalConverter().fromPython<RoutingGraph::Configuration>();
+  }
 
   implicitly_convertible<std::shared_ptr<RoutingCostDistance>, RoutingCostPtr>();
   implicitly_convertible<std::shared_ptr<RoutingCostTravelTime>, RoutingCostPtr>();
