@@ -1,8 +1,9 @@
 import unittest
 import lanelet2  # if we fail here, there is something wrong with lanelet2 registration
-from lanelet2.core import getId, Point3d, BasicPoint2d, LineString3d, Lanelet, LaneletMap
+import numpy as np
+from lanelet2.core import getId, Point3d, BasicPoint2d, BasicPoint3d, LineString3d, Lanelet, LaneletMap
 from lanelet2.core import TrafficLight
-from lanelet2.ml_converter import MapDataInterface
+from lanelet2.ml_converter import MapDataInterface, getRotatedRect, ParametrizationType, LineStringType, TEType
 
 
 def get_sample_lanelet_map():
@@ -203,6 +204,52 @@ class BicycleLaneSkipOverTestCase(unittest.TestCase):
         self.assertIn((v2, v1), edges)
         # the bike lane is not part of the vehicle graph
         self.assertFalse(any(bike in e for e in edges))
+
+
+class MapDataReprocessingTestCase(unittest.TestCase):
+    """processAll() can be called again with another box, the result equals a fresh MapData for that box"""
+
+    def summary(self, mData):
+        """Valid instance counts and tensor data (taken from the buffer) of all types"""
+        tf = mData.getTensorInstanceData(True, False)
+        res = {}
+        for t in LineStringType.values.values():
+            res[("ls", t)] = (len(mData.validLineStringsOfType(t)), tf.lineStringsOfType(t))
+            res[("cpd", t)] = (len(mData.validCompoundLineStringsOfType(t)), tf.compoundLineStringsOfType(t))
+        for t in TEType.values.values():
+            res[("te", t)] = (len(mData.validTEInstancesOfType(t)), tf.teInstancesOfType(t))
+        res["edges"] = (list(tf.teToCenterlineIndexEdges), list(tf.teToTEIndexEdges))
+        return res
+
+    def assertSameSummary(self, actual, expected):
+        self.assertEqual(actual.keys(), expected.keys())
+        self.assertEqual(actual.pop("edges"), expected.pop("edges"))
+        for key, (count, mats) in expected.items():
+            self.assertEqual(actual[key][0], count, key)
+            self.assertEqual(len(actual[key][1]), len(mats), key)
+            for a, e in zip(actual[key][1], mats):
+                np.testing.assert_allclose(a, e, atol=1e-9)
+
+    def test_process_all_twice(self):
+        mDataIf = MapDataInterface(get_sample_lanelet_map())
+        mDataIf.setCurrPosAndExtractSubmap2d(BasicPoint2d(3, 1.5), 0)
+        near = getRotatedRect(BasicPoint3d(3, 1.5, 0), 30, 15, 0, True)
+        far = getRotatedRect(BasicPoint3d(703, 1.5, 0), 30, 15, 0, True)
+
+        def process(mData, box):
+            return mData.processAll(box, ParametrizationType.LineString, True, 20, True, 20)
+
+        fresh = mDataIf.mapData(False)
+        process(fresh, near)
+        expected = self.summary(fresh)
+        self.assertGreater(sum(c for k, (c, _) in expected.items() if k != "edges"), 0)
+
+        reused = mDataIf.mapData(False)
+        process(reused, far)
+        self.assertEqual(sum(len(reused.validLineStringsOfType(t)) for t in LineStringType.values.values()), 0)
+        self.summary(reused)  # fills the tensor data buffer for the far box
+        process(reused, near)
+        self.assertSameSummary(self.summary(reused), expected)
 
 
 if __name__ == '__main__':
