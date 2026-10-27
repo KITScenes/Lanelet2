@@ -1152,6 +1152,9 @@ void MapData::updateAssociatedCpdInstanceIndices() {
 
 bool MapData::processAll(const OrientedRect& bbox, const ParametrizationType& paramType, bool resampleLanes,
                          int32_t nPointsLanes, bool resampleTE, int32_t nPointsTE, double pitch, double roll) {
+  // The tensor data buffer belongs to the previous bounding box
+  tfData_.reset();
+
   // Process lane line strings: -1 signals no resampling
   int32_t laneNPoints = (resampleLanes && nPointsLanes > 1) ? nPointsLanes : -1;
   bool validLineStrings = processInstances(laneLineStrings_, bbox, paramType, laneNPoints, pitch, roll);

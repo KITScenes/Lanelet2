@@ -16,6 +16,7 @@ struct LStringProcessResult {
   bool valid_{true};
 };
 
+namespace {
 LStringProcessResult processLineStringImpl(const BasicLineString3d& lstring, const OrientedRect& bbox,
                                            const ParametrizationType& paramType, int32_t nPoints, double pitch,
                                            double roll) {
@@ -72,19 +73,23 @@ LStringProcessResult processLineStringImpl(const BasicLineString3d& lstring, con
   return result;
 }
 
+}  // namespace
+
+void LineStringInstance::applyProcessResult(LStringProcessResult&& result, bool from2d) {
+  // Overwrite every per-box field, so that the outcome depends only on the raw instance and the arguments of the
+  // current process() call and never on a previous call with another box. An invalid result has empty lists.
+  cutInstances_ = std::move(result.cutInstances);
+  cutAndTransformedInstances_ = std::move(result.cutAndTransformedInstances);
+  cutTransformedAndResampledInstances_ = std::move(result.cutTransformedAndResampledInstances);
+  valid_ = result.valid_;
+  wasCut_ = result.wasCut_;
+  processedFrom2d_ = from2d;
+}
+
 bool LaneLineStringInstance::process(const OrientedRect& bbox, const ParametrizationType& paramType, int32_t nPoints,
                                      double pitch, double roll) {
-  LStringProcessResult result = processLineStringImpl(rawInstance_, bbox, paramType, nPoints, pitch, roll);
-  if (result.valid_) {
-    cutInstances_ = result.cutInstances;
-    cutAndTransformedInstances_ = result.cutAndTransformedInstances;
-    cutTransformedAndResampledInstances_ = result.cutTransformedAndResampledInstances;
-  } else {
-    valid_ = result.valid_;
-  }
-  wasCut_ = result.wasCut_;
-  processedFrom2d_ = bbox.from2d;
-  return result.valid_;
+  applyProcessResult(processLineStringImpl(rawInstance_, bbox, paramType, nPoints, pitch, roll), bbox.from2d);
+  return valid_;
 }
 
 std::vector<VectorXd> LaneLineStringInstance::computeInstanceVectors(bool onlyPoints, bool pointsIn2d) const {
@@ -140,17 +145,8 @@ std::vector<MatrixXd> TEInstance::pointMatrices(bool pointsIn2d) const {
 
 bool TEInstance::process(const OrientedRect& bbox, const ParametrizationType& paramType, int32_t nPoints, double pitch,
                          double roll) {
-  LStringProcessResult result = processLineStringImpl(rawInstance_, bbox, paramType, nPoints, pitch, roll);
-  if (result.valid_) {
-    cutInstances_ = result.cutInstances;
-    cutAndTransformedInstances_ = result.cutAndTransformedInstances;
-    cutTransformedAndResampledInstances_ = result.cutTransformedAndResampledInstances;
-  } else {
-    valid_ = result.valid_;
-  }
-  wasCut_ = result.wasCut_;
-  processedFrom2d_ = bbox.from2d;
-  return result.valid_;
+  applyProcessResult(processLineStringImpl(rawInstance_, bbox, paramType, nPoints, pitch, roll), bbox.from2d);
+  return valid_;
 }
 
 LaneletInstance::LaneletInstance(LaneLineStringInstancePtr leftBoundary, LaneLineStringInstancePtr rightBoundary,
@@ -173,12 +169,9 @@ bool LaneletInstance::process(const OrientedRect& bbox, const ParametrizationTyp
   rightBoundary_->process(bbox, paramType, nPoints, pitch, roll);
   centerline_->process(bbox, paramType, nPoints, pitch, roll);
 
-  if (leftBoundary_->wasCut() || rightBoundary_->wasCut() || centerline_->wasCut()) {
-    wasCut_ = true;
-  }
-  if (!leftBoundary_->valid() || !rightBoundary_->valid() || !centerline_->valid()) {
-    valid_ = false;
-  }
+  // Derived from the current state of the members only, never from a previous call
+  wasCut_ = leftBoundary_->wasCut() || rightBoundary_->wasCut() || centerline_->wasCut();
+  valid_ = leftBoundary_->valid() && rightBoundary_->valid() && centerline_->valid();
   processedFrom2d_ = bbox.from2d;
   return valid_;
 }
@@ -268,6 +261,9 @@ bool CompoundLaneLineStringInstance::process(const OrientedRect& bbox, const Par
                                              int32_t nPoints, double pitch, double roll) {
   bool valid = false;
   LaneLineStringInstance::process(bbox, paramType, nPoints, pitch, roll);
+  // Reset the per-member results of a previous call, they are only ever set to true below
+  processedInstancesValid_.assign(individualInstances_.size(), false);
+  pathLengthsProcessed_.assign(individualInstances_.size(), 0.);
   for (size_t i = 0; i < individualInstances_.size(); i++) {
     individualInstances_[i]->process(bbox, paramType, nPoints, pitch, roll);
 

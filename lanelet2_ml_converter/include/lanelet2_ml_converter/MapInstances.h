@@ -18,6 +18,8 @@ using MatrixXd = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;
 
 using BasicLineStrings3d = std::vector<BasicLineString3d>;
 
+struct LStringProcessResult;  // internal result of processing one line string, see MapInstances.cpp
+
 /**
  * @brief Base class of all local instance labels
  *
@@ -33,6 +35,9 @@ using BasicLineStrings3d = std::vector<BasicLineString3d>;
  *
  * @note An instance is only meaningful after process() has been called on it - MapData::processAll() does this
  * for every instance it holds.
+ * @note process() can be called repeatedly, e.g. with the bounding boxes of consecutive frames. Every call
+ * overwrites all processed state (valid(), wasCut() and the processed geometry), so the result only depends on
+ * the raw instance and the arguments of the latest call.
  */
 class MapInstance {
  public:
@@ -63,6 +68,7 @@ class MapInstance {
   /// @param pitch Pitch angle of the local reference frame [rad]
   /// @param roll Roll angle of the local reference frame [rad]
   /// @return valid(), i.e. false if the instance does not survive the cut
+  /// @note Overwrites the result of any previous call, see the class documentation
   virtual bool process(const OrientedRect& bbox, const ParametrizationType& paramType, int32_t nPoints,
                        double pitch = 0, double roll = 0) = 0;
 
@@ -131,6 +137,9 @@ class LineStringInstance : public MapInstance {
   BasicLineStrings3d cutTransformedAndResampledInstances_;
   LineStringInstance() {}
   LineStringInstance(const BasicLineString3d& feature, Id mapID) : MapInstance(mapID), rawInstance_{feature} {}
+
+  //! Replaces all processed state (geometry lists, valid_, wasCut_, processedFrom2d_) with the given result
+  void applyProcessResult(LStringProcessResult&& result, bool from2d);
 };
 
 /**

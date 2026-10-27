@@ -187,6 +187,9 @@ class MapData {
    * @param roll Roll angle of the local reference frame [rad]
    * @return True if every instance is still valid afterwards. False is not an error, it just means that some
    * instances are outside of the bounding box - use the validXXX() accessors to get the remaining ones
+   * @note Can be called repeatedly with different bounding boxes, e.g. to build a MapData once per scene and clip
+   * it per frame. Every call overwrites the result of the previous one (including the buffer of
+   * getTensorInstanceData()), so the result equals that of a freshly built MapData processed only with bbox.
    */
   bool processAll(const OrientedRect& bbox, const ParametrizationType& paramType, bool resampleLanes = true,
                   int32_t nPointsLanes = 0, bool resampleTE = true, int32_t nPointsTE = 0, double pitch = 0,
