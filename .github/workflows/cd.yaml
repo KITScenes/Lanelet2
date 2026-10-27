@@ -116,6 +116,10 @@ jobs:
         run: pip install lanelet2 --no-index --find-links dist/
       - name: Test wheel
         run: python -c "import lanelet2; assert lanelet2.core.Point2d(0, 0, 0) is not None"
+      - name: Test KITScenes build (ML converter, version label)
+        run: |
+          python -c "import lanelet2.ml_converter"
+          python -c "from importlib.metadata import version; v = version('lanelet2'); assert '+kitscenes' in v, v"
 
   publish:
     if: contains(github.ref, 'refs/tags/')
@@ -142,7 +146,7 @@ jobs:
 
   deploy-pages:
     runs-on: ubuntu-22.04
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master' && github.repository == 'fzi-forschungszentrum-informatik/Lanelet2'
     concurrency: deploy-${{ github.ref }}
     steps:
       - uses: actions/checkout@v2

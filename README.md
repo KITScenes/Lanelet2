@@ -1,4 +1,10 @@
-# Lanelet2
+# Lanelet2 (KITScenes build)
+
+> **This is the KITScenes fork of [Lanelet2](https://github.com/fzi-forschungszentrum-informatik/Lanelet2).** Its Python wheels are on the [releases page](https://github.com/KITScenes/Lanelet2/releases) and are what the [`kitscenes`](https://github.com/KIT-MRT/kitscenes) API installs for its map features. A wheel has the upstream version with a local label (e.g. `1.2.3+kitscenes1`) and differs from upstream Lanelet2 of that version in two ways:
+> - it includes **`lanelet2.ml_converter`** (local instance labels for map perception and other map-based learning, as numpy arrays);
+> - **routing can change lanes across bicycle lanes** (opt-in, upstream PR #434 plus `RoutingGraph` configuration from Python).
+>
+> Everything else is upstream Lanelet2. Install: `pip install "lanelet2 @ <wheel URL from the release>"`, or `pip install lanelet2 --find-links https://github.com/KITScenes/Lanelet2/releases/expanded_assets/<tag>`.
 
 [![CI](https://github.com/fzi-forschungszentrum-informatik/lanelet2/actions/workflows/ci.yaml/badge.svg)](
 https://github.com/fzi-forschungszentrum-informatik/lanelet2/actions/workflows/ci.yaml)

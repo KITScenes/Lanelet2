@@ -10,10 +10,19 @@ DISTNAME = "lanelet2"
 DESCRIPTION = "Map handling framework for automated driving."
 MAINTAINER = "Jonas Merkert"
 MAINTAINER_EMAIL = "jonas.merkert@kit.edu"
-URL = "https://github.com/fzi-forschungszentrum-informatik/Lanelet2"
-DOWNLOAD_URL = "https://github.com/fzi-forschungszentrum-informatik/Lanelet2/releases/tag/{{ version }}"
-VERSION = "{{ version }}"
+# KITScenes build (https://github.com/KITScenes/Lanelet2): the upstream version with a PEP 440 local
+# label, so that pip and uv prefer it over the PyPI wheel of the same version. It differs from upstream:
+# lanelet2.ml_converter is included, and lane changes across bicycle lanes are available in routing (opt-in).
+# Bump the label for every new KITScenes build of the same upstream version; the git tag is
+# <version>-<label>, e.g. 1.2.3-kitscenes1.
+KITSCENES_BUILD = "kitscenes1"
+URL = "https://github.com/KITScenes/Lanelet2"
+DOWNLOAD_URL = "https://github.com/KITScenes/Lanelet2/releases/tag/{{ version }}-" + KITSCENES_BUILD
+VERSION = "{{ version }}+" + KITSCENES_BUILD
 long_description = """
+**KITScenes build** of Lanelet2 {{ version }}: includes `lanelet2.ml_converter` (map labels for learning) and
+opt-in lane changes across bicycle lanes in routing. Otherwise the same as upstream Lanelet2 {{ version }}.
+
 Lanelet2 is a C++-based framework for handling map data in the context of automated driving. It is designed to utilize high-definition map data in order to efficiently handle the challenges posed to a vehicle in complex traffic scenarios. Flexibility and extensibility are some of the core principles to handle the upcoming challenges of future maps.
 
 Features:
