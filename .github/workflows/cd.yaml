@@ -121,6 +121,21 @@ jobs:
         run: |
           python -c "import lanelet2.ml_converter"
           python -c "from importlib.metadata import version; v = version('lanelet2'); assert '+kitscenes' in v, v"
+          # a MapData can be processed again for another box and then equals a fresh one (kitscenes2)
+          python - <<'EOF'
+          from lanelet2.core import getId, Point3d, BasicPoint2d, BasicPoint3d, LineString3d, Lanelet, LaneletMap
+          from lanelet2.ml_converter import MapDataInterface, getRotatedRect, ParametrizationType, LineStringType
+          def ls(x): return LineString3d(getId(), [Point3d(getId(), x, y, 0) for y in range(3)], {"type": "road_border"})
+          def box(x): return getRotatedRect(BasicPoint3d(x, 1, 0), 30, 15, 0, True)
+          def n(d): return sum(len(d.validLineStringsOfType(t)) for t in LineStringType.values.values())
+          m = LaneletMap(); m.add(Lanelet(getId(), ls(4), ls(0)))
+          i = MapDataInterface(m); i.setCurrPosAndExtractSubmap2d(BasicPoint2d(2, 1), 0)
+          fresh, reused = i.mapData(False), i.mapData(False)
+          fresh.processAll(box(2), ParametrizationType.LineString)
+          reused.processAll(box(702), ParametrizationType.LineString)
+          reused.processAll(box(2), ParametrizationType.LineString)
+          assert n(fresh) > 0 and n(reused) == n(fresh), (n(fresh), n(reused))
+          EOF
 
   publish:
     if: contains(github.ref, 'refs/tags/')
