@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - kitscenes/release
     tags:
       - '*'
   workflow_dispatch:
