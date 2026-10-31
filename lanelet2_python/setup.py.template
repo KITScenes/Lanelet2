@@ -14,8 +14,8 @@ MAINTAINER_EMAIL = "jonas.merkert@kit.edu"
 # label, so that pip and uv prefer it over the PyPI wheel of the same version. It differs from upstream:
 # lanelet2.ml_converter is included, and lane changes across bicycle lanes are available in routing (opt-in).
 # Bump the label for every new KITScenes build of the same upstream version; the git tag is
-# <version>-<label>, e.g. 1.2.3-kitscenes2.
-KITSCENES_BUILD = "kitscenes2"
+# <version>-<label>, e.g. 1.2.3-kitscenes3.
+KITSCENES_BUILD = "kitscenes3"
 URL = "https://github.com/KITScenes/Lanelet2"
 DOWNLOAD_URL = "https://github.com/KITScenes/Lanelet2/releases/tag/{{ version }}-" + KITSCENES_BUILD
 VERSION = "{{ version }}+" + KITSCENES_BUILD
