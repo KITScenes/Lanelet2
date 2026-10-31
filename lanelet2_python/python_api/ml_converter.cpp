@@ -553,7 +553,9 @@ BOOST_PYTHON_MODULE(PYTHON_API_MODULE_NAME) {  // NOLINT
             .add_property("uuid", make_function(&MapData::uuid, return_value_policy<copy_const_reference>()),
                           "Randomly generated id of this sample, kept across serialization")
             .def("getTensorInstanceData", &MapData::getTensorInstanceData, (arg("pointsIn2d"), arg("ignoreBuffer")),
-                 "Get all instance labels as numpy arrays. The result is buffered, so if the underlying instances "
+                 "Get all instance labels as numpy arrays. A compound line equal to an earlier one of its type is "
+                 "left out and the traffic element edges of its instance go to the earlier one (compound centerlines "
+                 "of paths that part outside the box). The result is buffered, so if the underlying instances "
                  "change you need to set ignoreBuffer. Changing pointsIn2d alone does not invalidate the buffer");
 
     class_<MapData::TensorInstanceData>(

@@ -1,5 +1,6 @@
 #include "lanelet2_ml_converter/MapData.h"
 
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 
@@ -1172,6 +1173,12 @@ bool MapData::processAll(const OrientedRect& bbox, const ParametrizationType& pa
   }
 }
 
+namespace {
+bool sameMatrix(const MatrixXd& lhs, const MatrixXd& rhs) {
+  return lhs.rows() == rhs.rows() && lhs.cols() == rhs.cols() && lhs == rhs;
+}
+}  // namespace
+
 MapData::TensorInstanceData MapData::getTensorInstanceData(bool pointsIn2d, bool ignoreBuffer) {
   if (!tfData_.has_value() || ignoreBuffer) {
     tfData_ = MapData::TensorInstanceData();
@@ -1191,20 +1198,37 @@ MapData::TensorInstanceData MapData::getTensorInstanceData(bool pointsIn2d, bool
     }
 
     // Collect all valid compound linestrings organized by type
-    // Build mapping from instance pointer to (type, index)
+    // Build mapping from instance pointer to (type, index of its first line). A line equal (in 3d) to an earlier one
+    // of its type is left out; an instance whose first line is left out maps to that earlier line
     std::map<CompoundLaneLineStringInstancePtr, std::pair<LineStringType, size_t>> cpdInstanceToIndex;
-    for (size_t i = 0; i < compoundLaneLineStrings_.size(); ++i) {
-      const auto& cpdFeat = compoundLaneLineStrings_[i];
-      if (cpdFeat->valid()) {
-        std::vector<MatrixXd> matrices = cpdFeat->pointMatrices(pointsIn2d);
-        LineStringType type = cpdFeat->type();
-        size_t typeIndex = tfData_->compoundLineStringsByType_[type].size();
-        for (const auto& mat : matrices) {
-          tfData_->compoundLineStringsByType_[type].push_back(mat);
-          tfData_->compoundLineStringInstancesByType_[type].push_back(cpdFeat);
-        }
-        cpdInstanceToIndex[cpdFeat] = {type, typeIndex};
+    std::map<LineStringType, std::vector<MatrixXd>> keptLines3d;
+    for (const auto& cpdFeat : compoundLaneLineStrings_) {
+      if (!cpdFeat->valid()) {
+        continue;
       }
+      std::vector<MatrixXd> matrices = cpdFeat->pointMatrices(pointsIn2d);
+      std::vector<MatrixXd> matrices3d = cpdFeat->pointMatrices(false);
+      LineStringType type = cpdFeat->type();
+      auto& lines = tfData_->compoundLineStringsByType_[type];
+      auto& kept3d = keptLines3d[type];
+      size_t firstIndex = lines.size();
+      for (size_t k = 0; k < matrices.size(); ++k) {
+        auto same = std::find_if(kept3d.begin(), kept3d.end(),
+                                 [&](const MatrixXd& line) { return sameMatrix(line, matrices3d[k]); });
+        if (same != kept3d.end()) {
+          if (k == 0) {
+            firstIndex = static_cast<size_t>(same - kept3d.begin());
+          }
+          continue;
+        }
+        kept3d.push_back(matrices3d[k]);
+        if (k == 0) {
+          firstIndex = lines.size();
+        }
+        lines.push_back(matrices[k]);
+        tfData_->compoundLineStringInstancesByType_[type].push_back(cpdFeat);
+      }
+      cpdInstanceToIndex[cpdFeat] = {type, firstIndex};
     }
 
     // Collect all valid traffic elements organized by type
@@ -1222,28 +1246,38 @@ MapData::TensorInstanceData MapData::getTensorInstanceData(bool pointsIn2d, bool
       }
     }
 
-    // Convert teToCenterlineEdges_ to index-based edges
+    // Convert teToCenterlineEdges_ to index-based edges. Every edge once: the edges of a merged instance go to the
+    // kept line, which may have them already, and a traffic element linked to two lanelets of one path would
+    // otherwise get its edge to that path twice
+    auto& indexEdges = tfData_->teToCenterlineIndexEdges_;
     for (const auto& edge : teToCenterlineEdges_) {
       auto teIt = teInstanceToIndex.find(edge.first);
       auto cpdIt = cpdInstanceToIndex.find(edge.second);
-      if (teIt != teInstanceToIndex.end() && cpdIt != cpdInstanceToIndex.end()) {
-        if (cpdIt->second.first != LineStringType::Centerline) {
-          std::cerr << "Warning: TE to centerline edge contains non-centerline compound linestring (type: "
-                    << static_cast<int>(cpdIt->second.first) << ")" << std::endl;
-        } else {
-          tfData_->teToCenterlineIndexEdges_.push_back(
-              std::make_tuple(teIt->second.first, teIt->second.second, cpdIt->second.second));
-        }
+      if (teIt == teInstanceToIndex.end() || cpdIt == cpdInstanceToIndex.end()) {
+        continue;
+      }
+      if (cpdIt->second.first != LineStringType::Centerline) {
+        std::cerr << "Warning: TE to centerline edge contains non-centerline compound linestring (type: "
+                  << static_cast<int>(cpdIt->second.first) << ")" << std::endl;
+        continue;
+      }
+      auto indexEdge = std::make_tuple(teIt->second.first, teIt->second.second, cpdIt->second.second);
+      if (std::find(indexEdges.begin(), indexEdges.end(), indexEdge) == indexEdges.end()) {
+        indexEdges.push_back(indexEdge);
       }
     }
 
-    // Convert teToTEEdges_ to index-based edges
+    // Convert teToTEEdges_ to index-based edges, every edge once
+    auto& teIndexEdges = tfData_->teToTEIndexEdges_;
     for (const auto& edge : teToTEEdges_) {
       auto teSourceIt = teInstanceToIndex.find(edge.first);
       auto teTargetIt = teInstanceToIndex.find(edge.second);
       if (teSourceIt != teInstanceToIndex.end() && teTargetIt != teInstanceToIndex.end()) {
-        tfData_->teToTEIndexEdges_.push_back(std::make_tuple(teSourceIt->second.first, teSourceIt->second.second,
-                                                             teTargetIt->second.first, teTargetIt->second.second));
+        auto indexEdge = std::make_tuple(teSourceIt->second.first, teSourceIt->second.second, teTargetIt->second.first,
+                                         teTargetIt->second.second);
+        if (std::find(teIndexEdges.begin(), teIndexEdges.end(), indexEdge) == teIndexEdges.end()) {
+          teIndexEdges.push_back(indexEdge);
+        }
       }
     }
   }

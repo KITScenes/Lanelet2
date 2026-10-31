@@ -252,5 +252,44 @@ class MapDataReprocessingTestCase(unittest.TestCase):
         self.assertSameSummary(self.summary(reused), expected)
 
 
+
+class MergeIdenticalCompoundsTestCase(unittest.TestCase):
+    """Compound centerlines of paths that part outside the box are one line inside it (kitscenes3)"""
+
+    @staticmethod
+    def fork_map():
+        """Northbound 0..20, 20..40, then a fork at y 40: straight on (to y 60) and to the right (x + 5)"""
+        def pt(x, y):
+            return Point3d(getId(), x, y, 0)
+
+        def ls(*pts):
+            return LineString3d(getId(), list(pts), {"type": "line_thin", "subtype": "solid"})
+        l0, r0, l20, r20, l40, r40 = pt(0, 0), pt(3.5, 0), pt(0, 20), pt(3.5, 20), pt(0, 40), pt(3.5, 40)
+        mymap = LaneletMap()
+        for left, right in ((ls(l0, l20), ls(r0, r20)), (ls(l20, l40), ls(r20, r40)),
+                            (ls(l40, pt(0, 60)), ls(r40, pt(3.5, 60))), (ls(l40, pt(5, 60)), ls(r40, pt(8.5, 60)))):
+            mymap.add(Lanelet(getId(), left, right, {"subtype": "road"}))
+        return mymap
+
+    def map_data(self, through_interface):
+        config = MapDataInterface.Configuration()
+        config.submapExtentLongitudinal, config.submapExtentLateral = 15, 10
+        mDataIf = MapDataInterface(self.fork_map(), config)
+        # the box ends at y 39, the fork (y 40) is in the extracted submap
+        mDataIf.setCurrPosAndExtractSubmap2d(BasicPoint2d(1.75, 24), np.pi / 2)
+        mData = mDataIf.mapData(through_interface)
+        if not through_interface:
+            box = getRotatedRect(BasicPoint3d(1.75, 24, 0), 15, 10, np.pi / 2, True)
+            mData.processAll(box, ParametrizationType.LineString, True, 20, True, 20)
+        return mData
+
+    def test_merge(self):
+        for through_interface in (True, False):
+            mData = self.map_data(through_interface)
+            paths = mData.validCompoundLineStringsOfType(LineStringType.Centerline)
+            self.assertEqual(len(paths), 2)  # the instances keep both paths
+            lines = mData.getTensorInstanceData(True, False).compoundLineStringsOfType(LineStringType.Centerline)
+            self.assertEqual(len(lines), 1)
+
 if __name__ == '__main__':
     unittest.main()

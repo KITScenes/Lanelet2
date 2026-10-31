@@ -240,7 +240,12 @@ class MapData {
   /// @brief Get all instance labels in matrix form
   /// @param pointsIn2d If true, points are 2d (x, y). Forced to true if the bounding box came from a 2d pose
   /// @param ignoreBuffer If true, the data is rebuilt instead of being taken from the buffer
-  /// @return The tensor data, only useful if the instances were processed beforehand (e.g. with processAll())
+  /// @return The tensor data, only useful if the instances were processed beforehand (e.g. with processAll()).
+  /// A compound line that equals (in 3d) a line of an earlier compound instance of its type is left out, and the
+  /// traffic element edges of an instance whose first line is left out go to that earlier line: compound
+  /// centerlines are built per path through the submap and only then cut, so paths that part outside the bounding
+  /// box are the same line inside it. The instance accessors (e.g. validCompoundLineStringsOfType()) keep them.
+  /// Every traffic element edge is in the tensor data once
   /// @note The computed data is buffered, so if the underlying instances change you need to set ignoreBuffer
   /// appropriately. In particular, changing pointsIn2d alone does not invalidate the buffer
   TensorInstanceData getTensorInstanceData(bool pointsIn2d, bool ignoreBuffer);
