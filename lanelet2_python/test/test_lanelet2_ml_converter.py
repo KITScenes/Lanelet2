@@ -291,5 +291,29 @@ class MergeIdenticalCompoundsTestCase(unittest.TestCase):
             lines = mData.getTensorInstanceData(True, False).compoundLineStringsOfType(LineStringType.Centerline)
             self.assertEqual(len(lines), 1)
 
+class BikeMarkingTestCase(unittest.TestCase):
+    """Bicycle lane markings (type bike_marking) get their own classes, road lane markings keep theirs"""
+
+    def test_boundary_type(self):
+        def line(attrs):
+            return LineString3d(getId(), [Point3d(getId(), 0, 0, 0), Point3d(getId(), 1, 0, 0)], attrs)
+        cases = [({"type": "bike_marking", "subtype": "dashed"}, LineStringType.BikeMarkingDashed),
+                 ({"type": "bike_marking", "subtype": "solid"}, LineStringType.BikeMarkingSolid),
+                 ({"type": "bike_marking", "subtype": "dashed_solid"}, LineStringType.BikeMarkingSolid),
+                 ({"type": "bike_marking"}, LineStringType.Unknown),
+                 ({"type": "line_thin", "subtype": "dashed"}, LineStringType.Dashed),
+                 ({"type": "line_thin", "subtype": "solid"}, LineStringType.Solid)]
+        for attrs, expected in cases:
+            self.assertEqual(lanelet2.ml_converter.bdTypeToEnum(line(attrs)), expected, attrs)
+
+    def test_tensor_data(self):
+        mymap, _, _, _ = get_bike_lane_skip_over_map()
+        mDataIf = MapDataInterface(mymap)
+        mDataIf.setCurrPosAndExtractSubmap2d(BasicPoint2d(5, 3), 0)
+        tf = mDataIf.mapData(True).getTensorInstanceData(True, False)
+        self.assertGreater(len(tf.compoundLineStringsOfType(LineStringType.BikeMarkingDashed)), 0)
+        self.assertEqual(len(tf.compoundLineStringsOfType(LineStringType.Dashed)), 0)
+
+
 if __name__ == '__main__':
     unittest.main()

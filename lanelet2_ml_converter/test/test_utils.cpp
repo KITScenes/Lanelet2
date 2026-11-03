@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <string>
+
 #include "lanelet2_ml_converter/Utils.h"
 #include "test_map.h"
 
@@ -29,6 +32,34 @@ TEST_F(MLConverterTest, ExtractSubmap) {  // NOLINT
   EXPECT_TRUE(submap->laneletLayer.exists(2005));
   EXPECT_TRUE(submap->laneletLayer.exists(2009));
   EXPECT_TRUE(submap->laneletLayer.exists(2010));
+}
+
+TEST(UtilsTest, BoundaryTypeOfBikeMarkings) {  // NOLINT
+  Id id = 9000;
+  auto line = [&id](const char* type, const char* subtype) {
+    AttributeMap attrs;
+    attrs[AttributeName::Type] = type;
+    if (std::string(subtype).size() > 0) {
+      attrs[AttributeName::Subtype] = subtype;
+    }
+    Point3d p0(id++, 0, 0, 0);
+    Point3d p1(id++, 1, 0, 0);
+    return ConstLineString3d(LineString3d(id++, {p0, p1}, attrs));
+  };
+  EXPECT_EQ(bdTypeToEnum(line("bike_marking", "dashed")), LineStringType::BikeMarkingDashed);
+  EXPECT_EQ(bdTypeToEnum(line("bike_marking", "solid")), LineStringType::BikeMarkingSolid);
+  EXPECT_EQ(bdTypeToEnum(line("bike_marking", "solid_solid")), LineStringType::BikeMarkingSolid);
+  EXPECT_EQ(bdTypeToEnum(line("bike_marking", "solid_dashed")), LineStringType::BikeMarkingSolid);
+  EXPECT_EQ(bdTypeToEnum(line("bike_marking", "dashed_solid")), LineStringType::BikeMarkingSolid);
+  EXPECT_EQ(bdTypeToEnum(line("bike_marking", "")), LineStringType::Unknown);
+  // lane markings of the road are not affected
+  EXPECT_EQ(bdTypeToEnum(line("line_thin", "dashed")), LineStringType::Dashed);
+  EXPECT_EQ(bdTypeToEnum(line("line_thick", "solid")), LineStringType::Solid);
+  // every type bdTypeToEnum returns is listed as a boundary type (the groupings are checked against that list)
+  auto types = boundaryLineStringTypes();
+  for (auto t : {LineStringType::BikeMarkingDashed, LineStringType::BikeMarkingSolid}) {
+    EXPECT_NE(std::find(types.begin(), types.end(), t), types.end());
+  }
 }
 
 TEST(UtilsTest, ResampleLineString) {  // NOLINT

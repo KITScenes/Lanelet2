@@ -87,7 +87,10 @@ inline std::string lineStringTypeToString(LineStringType type) {
 }
 
 /// @brief Get the LineStringType of a lanelet boundary from its tagging
-/// The `type` tag takes precedence over the `subtype` tag, which is only consulted for lane markings.
+/// The `type` tag takes precedence over the `subtype` tag, which is only consulted for lane markings and
+/// bicycle lane markings (`type=bike_marking`: dashed -> BikeMarkingDashed; solid and the mixed patterns
+/// solid_solid, solid_dashed, dashed_solid -> BikeMarkingSolid, as at least one side may not be crossed;
+/// any other subtype -> Unknown).
 /// Works with both ConstLineString3d and ConstPolygon3d.
 /// @return The type, LineStringType::Unknown if no tag matches
 /// @note Road borders are only recognized if they are tagged as such - an untagged road border is
@@ -121,6 +124,15 @@ inline LineStringType bdTypeToEnum(const T& element) {
     return LineStringType::Building;
   } else if (type == AttributeValueString::Wall) {
     return LineStringType::Wall;
+  } else if (type == AttributeValueString::BikeMarking) {
+    if (subtype == AttributeValueString::Dashed) {
+      return LineStringType::BikeMarkingDashed;
+    }
+    if (subtype == AttributeValueString::Solid || subtype == AttributeValueString::SolidSolid ||
+        subtype == AttributeValueString::SolidDashed || subtype == AttributeValueString::DashedSolid) {
+      return LineStringType::BikeMarkingSolid;
+    }
+    return LineStringType::Unknown;
   }
 
   // Check subtype for lane marking types
@@ -160,7 +172,8 @@ inline std::vector<LineStringType> boundaryLineStringTypes() {
           LineStringType::Building,      LineStringType::Wall,
           LineStringType::Dashed,        LineStringType::Solid,
           LineStringType::SolidSolid,    LineStringType::SolidDashed,
-          LineStringType::DashedSolid,   LineStringType::Unknown};
+          LineStringType::DashedSolid,   LineStringType::BikeMarkingDashed,
+          LineStringType::BikeMarkingSolid, LineStringType::Unknown};
 }
 
 /// @brief Throws unless the grouping assigns a group to every type a lanelet boundary can have
